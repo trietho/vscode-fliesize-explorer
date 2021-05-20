@@ -1,9 +1,11 @@
 {
 	"name": "file-size-explorer",
 	"displayName": "Filesize Explorer",
-	"description": "Provide an file explorer with file and folder size together with estimated gzip size",
+	"description": "View folders and files with size and the estimated gzip size",
 	"version": "0.0.1",
-	"publisher": "Triet Ho",
+	"publisher": "trietho",
+	"license": "FREE",
+	"icon": "resources/icon.png",
 	"author": {
 		"name": "Triet Ho",
 		"email": "trietho@gmail.com"
@@ -13,7 +15,8 @@
 		"vscode": "^1.52.0"
 	},
 	"categories": [
-		"Visualization", "Other"
+		"Visualization",
+		"Other"
 	],
 	"activationEvents": [
 		"onView:fileExplorer"
@@ -33,8 +36,24 @@
 				"command": "fileExplorer.refreshFile",
 				"title": "Refresh",
 				"icon": {
-					"light": "resources/light/refresh.svg",
-					"dark": "resources/dark/refresh.svg"
+					"light": "resources/refresh-flat.png",
+					"dark": "resources/refresh-flat.png"
+				}
+			},
+			{
+				"command": "fileExplorer.refreshRoot",
+				"title": "Refresh",
+				"icon": {
+					"light": "resources/refresh-flat.png",
+					"dark": "resources/refresh-flat.png"
+				}
+			},
+			{
+				"command": "fileExplorer.openFolder",
+				"title": "View in Explorer",
+				"icon": {
+					"light": "resources/folder-open.png",
+					"dark": "resources/folder-open.png"
 				}
 			},
 			{
@@ -43,14 +62,30 @@
 			}
 		],
 		"menus": {
+			"view/title": [
+				{
+					"command": "fileExplorer.refreshRoot",
+					"when": "view == fileExplorer",
+					"group": "navigation"
+				}
+			],
 			"view/item/context": [
 				{
 					"command": "fileExplorer.refreshFile",
 					"when": "view == fileExplorer",
 					"group": "inline"
+				},
+				{
+					"command": "fileExplorer.openFolder",
+					"when": "view == fileExplorer",
+					"group": "inline"
 				}
 			]
 		}
+	},
+	"repository": {
+		"url": "https://github.com/trietho/vscode-fliesize-explorer.git",
+		"type": "git"
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

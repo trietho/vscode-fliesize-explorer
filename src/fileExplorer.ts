@@ -273,6 +273,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 	// tree data provider
 
 	async getChildren(element?: Entry): Promise<Entry[]> {
+		
+		if (vscode.workspace.workspaceFolders == null)
+			return [];
+		
 		if (element) {
 			const children = await this.readDirectory(element.uri);
 			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(element.uri.fsPath, name)), type }));
@@ -297,18 +301,23 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		this._onDidChangeTreeData.fire(element);// _onDidChangeFile.fire([{type: vscode.FileChangeType.Changed, uri: element}]);
 	}
 
+	openFolder(element: Entry) {
+		vscode.commands.executeCommand("revealFileInOS", element.uri);
+	}
+
 	async getTreeItem(element: Entry): Promise<vscode.TreeItem> {
 		const treeItem = new vscode.TreeItem(element.uri, element.type === vscode.FileType.Directory ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+		
+		var size: number = 0;
 		if (element.type === vscode.FileType.File) {
 			treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
 			treeItem.contextValue = 'file';
-		}
-		
-		var size: number = 0;
-		if (element.type == vscode.FileType.File) {
+
 			size = fs.statSync(element.uri.fsPath).size;
-			treeItem.description = ` - ${filesize(size)} - gzip: ${filesize(gzipSize.fileSync(element.uri.fsPath))}`;
+			treeItem.description = ` -  ${filesize(size)} - (${filesize(gzipSize.fileSync(element.uri.fsPath))})`;
+
 		} else if (element.type == vscode.FileType.Directory) {
+
 			size = (await this._getDirSize(element.uri.fsPath)) as number;
 			treeItem.description = ` - ${filesize(size)}`;
 		}
@@ -330,9 +339,13 @@ export class FileExplorer {
 		context.subscriptions.push(vscode.window.createTreeView('fileExplorer', { treeDataProvider }));
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
 		vscode.commands.registerCommand('fileExplorer.refreshFile', (resource) => treeDataProvider.refreshFile(resource));
+		vscode.commands.registerCommand('fileExplorer.refreshRoot', (resource) => treeDataProvider.refreshFile(undefined));
+		vscode.commands.registerCommand('fileExplorer.openFolder', (resource) => treeDataProvider.openFolder(resource));
+
 	}
 
 	private openResource(resource: vscode.Uri): void {
-		vscode.window.showTextDocument(resource);
+		vscode.commands.executeCommand("vscode.open", resource);
+		//vscode.window.showTextDocument(resource);
 	}
 }
