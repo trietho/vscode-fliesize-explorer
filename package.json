@@ -1,0 +1,79 @@
+{
+	"name": "file-size-explorer",
+	"displayName": "Filesize Explorer",
+	"description": "Provide an file explorer with file and folder size together with estimated gzip size",
+	"version": "0.0.1",
+	"publisher": "Triet Ho",
+	"author": {
+		"name": "Triet Ho",
+		"email": "trietho@gmail.com"
+	},
+	"enableProposedApi": true,
+	"engines": {
+		"vscode": "^1.52.0"
+	},
+	"categories": [
+		"Visualization", "Other"
+	],
+	"activationEvents": [
+		"onView:fileExplorer"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"views": {
+			"explorer": [
+				{
+					"id": "fileExplorer",
+					"name": "Filesize Explorer"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "fileExplorer.refreshFile",
+				"title": "Refresh",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "fileExplorer.openFile",
+				"title": "Open File"
+			}
+		],
+		"menus": {
+			"view/item/context": [
+				{
+					"command": "fileExplorer.refreshFile",
+					"when": "view == fileExplorer",
+					"group": "inline"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"lint": "eslint . --ext .ts,.tsx"
+	},
+	"devDependencies": {
+		"@types/mkdirp": "^0.5.2",
+		"@types/node": "^12.12.0",
+		"@types/rimraf": "^2.0.2",
+		"@types/vscode": "^1.45.0",
+		"@typescript-eslint/eslint-plugin": "^4.16.0",
+		"@typescript-eslint/parser": "^4.16.0",
+		"eslint": "^7.21.0",
+		"typescript": "^4.2.2"
+	},
+	"dependencies": {
+		"fast-folder-size": "^1.3.0",
+		"filesize": "^6.3.0",
+		"gzip-size": "^6.0.0",
+		"minimist": "^0.2.1",
+		"mkdirp": "^0.5.1",
+		"rimraf": "^2.6.2"
+	}
+}
