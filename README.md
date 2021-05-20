@@ -6,4 +6,4 @@ Sometime we would like to know:
 * about the content lenghts of the frontend resources that to be downloaded to browsers
 * which folders or files that consume the hard drive storage in order to clean up them properly
 
-![Filesize Explorer](https://raw.githubusercontent.com/trietho/vscode-fliesize-explorer/master/resources/filesize-explorer-screen1.png)
+![Filesize Explorer](https://github.com/trietho/vscode-fliesize-explorer/blob/master/media/filesize-explorer-screen1.png?raw=true)
