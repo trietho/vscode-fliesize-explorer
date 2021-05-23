@@ -1,16 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as mkdirp from 'mkdirp';
-import * as rimraf from 'rimraf';
+import { promisify } from 'util';
 import * as fastFolderSize from 'fast-folder-size'
 import * as filesize from 'filesize'
-import { resolve } from 'dns';
-import { rejects } from 'assert';
 import gzipSize = require('gzip-size');
-import EventEmitter = require('events');
-
-//#region Utilities
 
 namespace _ {
 
@@ -35,7 +29,7 @@ namespace _ {
 			return vscode.FileSystemError.FileExists();
 		}
 
-		if (error.code === 'EPERM' || error.code === 'EACCESS') {
+		if (error.code === 'EPERM' || error.code === 'EACCESS' || error.code === 'EBUSY') {
 			return vscode.FileSystemError.NoPermissions();
 		}
 
@@ -64,13 +58,24 @@ namespace _ {
 
 	export function readdir(path: string): Promise<string[]> {
 		return new Promise<string[]>((resolve, reject) => {
-			fs.readdir(path, (error, children) => handleResult(resolve, reject, error, normalizeNFC(children)));
+			try {
+				fs.readdir(path, (error, children) => handleResult(resolve, reject, error, normalizeNFC(children)));
+			} catch (error) {
+				console.log(error);
+			}
 		});
 	}
 
-	export function stat(path: string): Promise<fs.Stats> {
+	export function stat(path: string): Promise<fs.Stats> | undefined {
+
 		return new Promise<fs.Stats>((resolve, reject) => {
-			fs.stat(path, (error, stat) => handleResult(resolve, reject, error, stat));
+			try {
+				var info = fs.statSync(path);
+				return resolve(info);
+			} catch (error) {
+				return resolve(new fs.Stats())
+			}
+
 		});
 	}
 
@@ -80,41 +85,15 @@ namespace _ {
 		});
 	}
 
-	export function writefile(path: string, content: Buffer): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			fs.writeFile(path, content, error => handleResult(resolve, reject, error, void 0));
-		});
+	export async function exists(path: string): Promise<boolean> {
+		try {
+			await promisify(fs.access)(path);
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
-	export function exists(path: string): Promise<boolean> {
-		return new Promise<boolean>((resolve, reject) => {
-			fs.exists(path, exists => handleResult(resolve, reject, null, exists));
-		});
-	}
-
-	export function rmrf(path: string): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			rimraf(path, error => handleResult(resolve, reject, error, void 0));
-		});
-	}
-
-	export function mkdir(path: string): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			mkdirp(path, error => handleResult(resolve, reject, error, void 0));
-		});
-	}
-
-	export function rename(oldPath: string, newPath: string): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			fs.rename(oldPath, newPath, error => handleResult(resolve, reject, error, void 0));
-		});
-	}
-
-	export function unlink(path: string): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			fs.unlink(path, error => handleResult(resolve, reject, error, void 0));
-		});
-	}
 }
 
 export class FileStat implements vscode.FileStat {
@@ -167,10 +146,6 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
 	}
 
-	get onDidChangeFile(): vscode.Event<vscode.FileChangeEvent[]> {
-		return this._onDidChangeFile.event;
-	}
-
 	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
 		const watcher = fs.watch(uri.fsPath, { recursive: options.recursive }, async (event: string, filename: string | Buffer) => {
 			const filepath = path.join(uri.fsPath, _.normalizeNFC(filename.toString()));
@@ -211,72 +186,44 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		return Promise.resolve(result);
 	}
 
-	createDirectory(uri: vscode.Uri): void | Thenable<void> {
-		return _.mkdir(uri.fsPath);
-	}
-
 	readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
 		return _.readfile(uri.fsPath);
 	}
 
+	//#region 
+	createDirectory(uri: vscode.Uri): void | Thenable<void> {
+		throw new Error('Method not implemented.');
+	}
 	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Thenable<void> {
-		return this._writeFile(uri, content, options);
+		throw new Error('Method not implemented.');
 	}
-
-	async _writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): Promise<void> {
-		const exists = await _.exists(uri.fsPath);
-		if (!exists) {
-			if (!options.create) {
-				throw vscode.FileSystemError.FileNotFound();
-			}
-
-			await _.mkdir(path.dirname(uri.fsPath));
-		} else {
-			if (!options.overwrite) {
-				throw vscode.FileSystemError.FileExists();
-			}
-		}
-
-		return _.writefile(uri.fsPath, content as Buffer);
-	}
-
 	delete(uri: vscode.Uri, options: { recursive: boolean; }): void | Thenable<void> {
-		if (options.recursive) {
-			return _.rmrf(uri.fsPath);
-		}
-
-		return _.unlink(uri.fsPath);
+		throw new Error('Method not implemented.');
 	}
-
 	rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Thenable<void> {
-		return this._rename(oldUri, newUri, options);
+		throw new Error('Method not implemented.');
+	}
+	copy?(source: vscode.Uri, destination: vscode.Uri, options: { overwrite: boolean; }): void | Thenable<void> {
+		throw new Error('Method not implemented.');
 	}
 
-	async _rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): Promise<void> {
-		const exists = await _.exists(newUri.fsPath);
-		if (exists) {
-			if (!options.overwrite) {
-				throw vscode.FileSystemError.FileExists();
-			} else {
-				await _.rmrf(newUri.fsPath);
-			}
-		}
-
-		const parentExists = await _.exists(path.dirname(newUri.fsPath));
-		if (!parentExists) {
-			await _.mkdir(path.dirname(newUri.fsPath));
-		}
-
-		return _.rename(oldUri.fsPath, newUri.fsPath);
+	getParent?(element: Entry): vscode.ProviderResult<Entry> {
+		throw new Error('Method not implemented.');
 	}
+	// resolveTreeItem?(item: vscode.TreeItem, element: Entry, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TreeItem> {
+	// 	throw new Error('Method not implemented.');
+	// }
 
-	// tree data provider
+	get onDidChangeFile(): vscode.Event<vscode.FileChangeEvent[]> {
+		return this._onDidChangeFile.event;
+	}
+	//#endregion
 
 	async getChildren(element?: Entry): Promise<Entry[]> {
-		
+
 		if (vscode.workspace.workspaceFolders == null)
 			return [];
-		
+
 		if (element) {
 			const children = await this.readDirectory(element.uri);
 			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(element.uri.fsPath, name)), type }));
@@ -297,7 +244,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		return [];
 	}
 
-	refreshFile(element: Entry){
+	refreshFile(element: Entry) {
 		this._onDidChangeTreeData.fire(element);// _onDidChangeFile.fire([{type: vscode.FileChangeType.Changed, uri: element}]);
 	}
 
@@ -307,28 +254,46 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 
 	async getTreeItem(element: Entry): Promise<vscode.TreeItem> {
 		const treeItem = new vscode.TreeItem(element.uri, element.type === vscode.FileType.Directory ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-		
+
 		var size: number = 0;
 		if (element.type === vscode.FileType.File) {
 			treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
 			treeItem.contextValue = 'file';
+			try {
+				size = (await this.stat(element.uri)).size;
+			} catch (error) {
 
-			size = fs.statSync(element.uri.fsPath).size;
-			treeItem.description = ` -  ${filesize(size)} - (${filesize(gzipSize.fileSync(element.uri.fsPath))})`;
+			}
+
+			treeItem.description = ` -  ${filesize(size)} - (${filesize(this._getGzipSize(element.uri.fsPath))})`;
 
 		} else if (element.type == vscode.FileType.Directory) {
 
 			size = (await this._getDirSize(element.uri.fsPath)) as number;
 			treeItem.description = ` - ${filesize(size)}`;
 		}
+		//treeItem.tooltip = element.uri.fsPath;
 		return treeItem;
 	}
 
-	 _getDirSize(path: String) {
-		return new Promise ((resolve, reject) => {
-			fastFolderSize(path, (err, result) => {
-				resolve(result)
-			});
+	_getGzipSize(path: string): number {
+		try {
+			return gzipSize.fileSync(path);
+		} catch (error) {
+			return 0;
+		}
+	}
+
+	_getDirSize(path: String) {
+		return new Promise((resolve, reject) => {
+			try {
+				fastFolderSize(path, (err, result) => {
+					resolve(result)
+				});
+			} catch (error) {
+				resolve(0)
+			}
+
 		})
 	}
 }
@@ -346,6 +311,5 @@ export class FileExplorer {
 
 	private openResource(resource: vscode.Uri): void {
 		vscode.commands.executeCommand("vscode.open", resource);
-		//vscode.window.showTextDocument(resource);
 	}
 }

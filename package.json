@@ -2,7 +2,7 @@
 	"name": "file-size-explorer",
 	"displayName": "Filesize Explorer",
 	"description": "View folders and files with size and the estimated gzip size",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"publisher": "trietho",
 	"license": "FREE",
 	"icon": "resources/icon.png",
